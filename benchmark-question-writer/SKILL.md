@@ -49,7 +49,7 @@ description: Use when generating original benchmark problem candidates from capa
 
 ## 产物字段
 
-`id`, `blueprint_id`, `candidate_id`, `topic`, `difficulty`(固定为5), `problem`, `answer`, `solution`, `key_insight`, `trap`, `why_discriminative`, `answer_type`, `blueprint_alignment`, `discovery_alignment`, `design_principle_alignment`, `forbidden_pattern_avoidance`, `reasoning_steps`, `common_wrong_answer`, `variant_strategy`, `why_harder_than_basic_version`, `shortcut_that_fails`, `condition_sensitivity_test`
+`id`, `blueprint_id`, `candidate_id`, `topic`, `difficulty`(固定为5), `problem`, `answer`, `solution`, `key_insight`, `trap`, `why_discriminative`, `answer_type`, `acceptable_variants`, `scoring_notes`, `blueprint_alignment`, `discovery_alignment`, `design_principle_alignment`, `forbidden_pattern_avoidance`, `reasoning_steps`, `common_wrong_answer`, `variant_strategy`, `why_harder_than_basic_version`, `shortcut_that_fails`, `condition_sensitivity_test`
 
 ID 约定：`candidate_id` 使用 `<blueprint_id>_cand1` / `<blueprint_id>_cand2`；`id` 必须等于 `candidate_id`。
 
@@ -64,6 +64,8 @@ ID 约定：`candidate_id` 使用 `<blueprint_id>_cand1` / `<blueprint_id>_cand2
 本 benchmark 只生成 difficulty=5 的题。
 
 - `answer_type` 用稳定类别，例如 `numeric` / `symbolic` / `multiple_choice` / `short_text` / `structured_list` / `proof_or_reasoning`。
+- `acceptable_variants` 写可接受的等价答案、单位/精度/顺序/同义表述边界；不能只重复 `answer`。
+- `scoring_notes` 写该题判分时必须保留的抽取、归一化、部分分和常见误杀风险。
 - `blueprint_alignment` 写明题目如何实现 target_capability、expected_failure_mode、anti_template_design。
 - `discovery_alignment` 写明题目如何继承蓝图的 `source_cluster_ids` 和 `discovery_basis`，不得回到泛泛 topic。
 - `design_principle_alignment` 写明题目如何符合 design principles 的 allowed shapes 和 difficulty sources。

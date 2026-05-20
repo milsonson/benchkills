@@ -166,6 +166,11 @@ def load_defaults(config_path: Path) -> dict[str, Any]:
     api_key_env = DEFAULT_API_KEY_ENV
     if api_key.startswith("${") and api_key.endswith("}"):
         api_key_env = api_key[2:-1]
+    seeds = config.get("seeds", config.get("seed", [1]))
+    if isinstance(seeds, list):
+        seeds_text = ",".join(str(seed) for seed in seeds)
+    else:
+        seeds_text = str(seeds if seeds is not None else 1)
     return {
         "base_url": first.get("base_url") or DEFAULT_BASE_URL,
         "credential_mode": "env",
@@ -173,9 +178,9 @@ def load_defaults(config_path: Path) -> dict[str, Any]:
         "api_key": "",
         "models": "\n".join(str(model.get("name")) for model in models if model.get("name")),
         "max_tokens": int(first.get("max_tokens") or runtime.get("max_tokens") or 12000),
-        "concurrency": int(execution.get("concurrency") or runtime.get("concurrency") or 64),
+        "concurrency": int(runtime.get("concurrency") or execution.get("concurrency") or 64),
         "temperature": float(first.get("temperature") or runtime.get("temperature") or 0),
-        "seeds": str(config.get("seed") if config.get("seed") is not None else 1),
+        "seeds": seeds_text,
         "output_dir": str(runtime.get("output_dir") or (config.get("data") or {}).get("output_dir") or "outputs"),
     }
 
@@ -304,6 +309,7 @@ HTML = """<!doctype html>
     input, textarea, select { width: 100%; border: 1px solid var(--line); border-radius: 6px; padding: 8px 9px; font: inherit; font-size: 13px; background: #fff; }
     textarea { min-height: 118px; resize: vertical; }
     .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .hidden { display: none; }
     .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
     button { border: 1px solid var(--line); border-radius: 6px; background: #fff; padding: 8px 11px; font-weight: 650; cursor: pointer; }
     button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
@@ -333,9 +339,9 @@ HTML = """<!doctype html>
       <label>Base URL</label><input id="base_url">
       <div class="grid2">
         <div><label>Credential</label><select id="credential_mode"><option value="env">Environment</option><option value="paste">Paste key</option></select></div>
-        <div><label>API key env</label><input id="api_key_env"></div>
+        <div id="credential_env_row"><label>API key env</label><input id="api_key_env"></div>
       </div>
-      <label>API key</label><input id="api_key" type="password" autocomplete="off">
+      <div id="credential_paste_row" class="hidden"><label>API key</label><input id="api_key" type="password" autocomplete="off"></div>
       <label>Models</label><textarea id="models"></textarea>
       <div class="grid2">
         <div><label>Max tokens</label><input id="max_tokens" type="number" min="1"></div>
@@ -384,6 +390,11 @@ HTML = """<!doctype html>
   <script>
     const ids = ["base_url","credential_mode","api_key_env","api_key","models","max_tokens","concurrency","temperature","seeds","output_dir"];
     const el = id => document.getElementById(id);
+    function syncCredentialMode() {
+      const paste = el("credential_mode").value === "paste";
+      el("credential_env_row").classList.toggle("hidden", paste);
+      el("credential_paste_row").classList.toggle("hidden", !paste);
+    }
     function payload() {
       return {
         base_url: el("base_url").value,
@@ -408,6 +419,7 @@ HTML = """<!doctype html>
     async function loadDefaults() {
       const defaults = await fetch("/api/defaults").then(r => r.json());
       ids.forEach(id => { if (defaults[id] !== undefined) el(id).value = defaults[id]; });
+      syncCredentialMode();
       await refreshAll();
     }
     function renderStatus(s) {
@@ -448,7 +460,7 @@ HTML = """<!doctype html>
         el("models_result").textContent = `${data.count} models from ${data.source}\\n` + data.models.join("\\n");
       } catch (err) { el("models_result").textContent = err.message; }
     };
-    ids.forEach(id => el(id).addEventListener("change", refreshAll));
+    ids.forEach(id => el(id).addEventListener("change", () => { if (id === "credential_mode") syncCredentialMode(); refreshAll(); }));
     loadDefaults();
     setInterval(refreshAll, 3000);
   </script>

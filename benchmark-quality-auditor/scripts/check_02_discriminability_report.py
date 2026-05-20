@@ -36,10 +36,11 @@ def main(path: str) -> None:
 
     summary = data.get("summary") or {}
     require(summary.get("verdict") in VALID_VERDICTS, f"summary.verdict must be one of {VALID_VERDICTS}", errors)
+    require(isinstance(summary.get("score"), (int, float)) and 0.0 <= float(summary["score"]) <= 1.0, "summary.score must be numeric in [0,1]", errors)
     require(isinstance(summary.get("headline"), str) and summary["headline"].strip(), "summary.headline must be non-empty string", errors)
 
     checks = data.get("checks") or {}
-    for key in ["score_distribution", "ceiling_floor", "bin_uniformity", "gap_proportionality", "item_information_value", "per_difficulty"]:
+    for key in ["score_distribution", "ceiling_floor", "bin_uniformity", "gap_proportionality", "item_information_value", "per_difficulty", "llm_judge_comparison"]:
         require(key in checks, f"checks.{key} missing", errors)
 
     sdist = checks.get("score_distribution") or {}
@@ -86,6 +87,11 @@ def main(path: str) -> None:
         expected_share = iiv["informative"] / iiv["n_items"]
         if abs(float(share) - expected_share) > 1e-6:
             errors.append(f"item_information_value.informative_share={share} but informative/n_items={expected_share}")
+
+    ljc = checks.get("llm_judge_comparison") or {}
+    require(isinstance(ljc.get("used"), bool), "llm_judge_comparison.used must be boolean", errors)
+    for k in ["score_std", "max_bin_share", "informative_share"]:
+        require(isinstance(ljc.get(k), (int, float)), f"llm_judge_comparison.{k} must be numeric", errors)
 
     require(p.with_suffix(".md").exists(), f"companion markdown report missing: {p.with_suffix('.md').name}", errors)
 

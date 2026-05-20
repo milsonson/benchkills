@@ -18,7 +18,7 @@ description: Use when adding a single-file Python local runner for a benchmark s
 
 ## 硬性
 
-- **共享核心**：`web_runner.py` 必须调用 `eval_core.py` 的 `plan_runs(...)` / `run_eval_job(...)` 或等价公共入口；不得复制粘贴一份并发、重试、评分、落盘逻辑。
+- **共享核心**：`web_runner.py` 必须调用 `eval_core.py` 的 `plan_runs(...)` / `run_eval_job(...)` 或等价公共入口；不得复制粘贴一份并发、重试、评分、落盘逻辑。若参考 `runner_reference.py`，必须先确认 `eval_core.py` 暴露 `load_config(...)`、`parse_models(...)`、`parse_seeds(...)`、`preview_outputs(...)`、`recent_samples(...)`、`run_evaluation(...)`；缺失时只在 `eval_core.py` 补薄封装，不在 runner 里另写评测核心。
 - **配置入口**：交互入口至少支持填写/覆盖 `base_url`、模型列表、`max_tokens`、`concurrency`、`temperature`、seed 列表、输出目录。
 - **默认配置**：默认读取 `config.yaml` 中的 DeepInfra OpenAI-compatible 设置；默认 `base_url` 应显示为 `https://api.deepinfra.com/v1/openai`，默认凭证环境变量为 `DEEPINFRA_API_KEY`。
 - **并行要求：不仅支持并行，还支持跨模型的并行。**

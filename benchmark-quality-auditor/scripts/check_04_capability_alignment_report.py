@@ -36,6 +36,7 @@ def main(path: str) -> None:
 
     summary = data.get("summary") or {}
     require(summary.get("verdict") in VALID_VERDICTS, f"summary.verdict must be one of {VALID_VERDICTS}", errors)
+    require(isinstance(summary.get("score"), (int, float)) and 0.0 <= float(summary["score"]) <= 1.0, "summary.score must be numeric in [0,1]", errors)
     require(isinstance(summary.get("headline"), str) and summary["headline"].strip(), "summary.headline must be non-empty string", errors)
 
     checks = data.get("checks") or {}
@@ -74,6 +75,10 @@ def main(path: str) -> None:
                     require(isinstance(inv.get("significant"), bool), f"inversions_overall[{k}].significant must be boolean", errors)
             if f.get("monotone_overall") is True and isinstance(inversions, list) and len(inversions) > 0:
                 errors.append(f"families_analyzed[{i}] contradiction: monotone_overall=true but inversions_overall is non-empty")
+            ljc = f.get("llm_judge_comparison") or {}
+            require(isinstance(ljc.get("used"), bool), f"families_analyzed[{i}].llm_judge_comparison.used must be boolean", errors)
+            require(isinstance(ljc.get("monotone_overall"), bool), f"families_analyzed[{i}].llm_judge_comparison.monotone_overall must be boolean", errors)
+            require(isinstance(ljc.get("inversions_overall"), list), f"families_analyzed[{i}].llm_judge_comparison.inversions_overall must be list", errors)
 
     require(p.with_suffix(".md").exists(), f"companion markdown report missing: {p.with_suffix('.md').name}", errors)
 

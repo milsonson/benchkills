@@ -52,6 +52,7 @@ def main(path: str) -> None:
 
     summary = data.get("summary") or {}
     require(summary.get("verdict") in VALID_VERDICTS, f"summary.verdict must be one of {VALID_VERDICTS}", errors)
+    require_number(summary.get("score"), "summary.score must be numeric in [0,1]", errors, 0.0, 1.0)
     require(isinstance(summary.get("headline"), str) and summary.get("headline", "").strip(), "summary.headline must be non-empty string", errors)
 
     checks = data.get("checks") or {}

@@ -11,7 +11,7 @@ description: Use when implementing the runnable evaluation pipeline, scorer.py, 
 
 - **断点续跑**：每完成一条就落盘；截断样本也视为完成并跳过，除非用户明确要求重跑。
 - **共享核心**：把评测、并发、重试、落盘、打分、manifest 更新放在 `eval_core.py`；`run_eval.py` 只是 CLI 薄入口。后续 runner 必须复用这套核心。
-- **核心接口**：`eval_core.py` 至少提供 `plan_runs(...)` 和 `run_eval_job(...)`；`run_eval_job` 支持进度回调和取消信号，供 `web_runner.py` 做 preview、实时状态、Stop 和 resume。
+- **核心接口**：`eval_core.py` 必须提供 `load_config(...)`、`parse_models(...)`、`parse_seeds(...)`、`plan_runs(...)`、`preview_outputs(...)`、`recent_samples(...)`、`run_eval_job(...)` 和 `run_evaluation(...)`。`run_evaluation(...)` 可以是调用 `plan_runs(...)` / `run_eval_job(...)` 的薄封装；`run_eval_job(...)` 支持进度回调和取消信号，供 `web_runner.py` 做 preview、实时状态、Stop 和 resume。
 - **并发可配置**：`asyncio.Semaphore` 或 `ThreadPoolExecutor`，并发度读 config。并且默认并发大于32。
 - **全局并发**：跨模型、跨 seed、跨题目的同时 API 请求总数不得超过 `concurrency`；复用 client 不等于串行，worker 仍必须并发调度。
 - **API client 复用**：不得每题新建 API client。每个 run/model 复用 client/连接池，运行结束后关闭。
@@ -41,7 +41,7 @@ description: Use when implementing the runnable evaluation pipeline, scorer.py, 
 
 - `python run_eval.py --config config.yaml` 可直接启动。
 - `eval_core.py` 提供可被 `run_eval.py` 和 `web_runner.py` 复用的运行函数。
-- `eval_core.py` 的 `plan_runs(...)` / `run_eval_job(...)` 是 CLI 和 runner 的共同入口。
+- `eval_core.py` 的 `plan_runs(...)` / `run_eval_job(...)` 是 CLI 和 runner 的共同入口；`run_evaluation(...)`、`preview_outputs(...)`、`recent_samples(...)`、`parse_models(...)`、`parse_seeds(...)` 作为 runner 兼容入口必须可导入调用。
 - `scorer.py` 提供可复用的抽取 + 判分函数。
 - README 说明如何运行 scoring cases 自检。
 - 更新 `requirements.txt`；`README.md` 追加"如何运行"。

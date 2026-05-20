@@ -37,10 +37,11 @@ def main(path: str) -> None:
 
     summary = data.get("summary") or {}
     require(summary.get("verdict") in VALID_VERDICTS, f"summary.verdict must be one of {VALID_VERDICTS}", errors)
+    require(isinstance(summary.get("score"), (int, float)) and 0.0 <= float(summary["score"]) <= 1.0, "summary.score must be numeric in [0,1]", errors)
     require(isinstance(summary.get("headline"), str) and summary["headline"].strip(), "summary.headline must be non-empty string", errors)
 
     checks = data.get("checks") or {}
-    for key in ["produced_ranking", "references_used", "proxy_fallback", "inversions"]:
+    for key in ["produced_ranking", "references_used", "proxy_fallback", "inversions", "llm_judge_comparison"]:
         require(key in checks, f"checks.{key} missing", errors)
 
     pr = checks.get("produced_ranking") or []
@@ -113,6 +114,11 @@ def main(path: str) -> None:
                 if isinstance(a_id, str) and isinstance(b_id, str) and a_id in pr_score_by_run and b_id in pr_score_by_run:
                     if abs(pr_score_by_run[a_id] - pr_score_by_run[b_id]) < 1e-9:
                         errors.append(f"inversions[{i}] reports tied scores ({a_id}={pr_score_by_run[a_id]}, {b_id}={pr_score_by_run[b_id]}) — ties are not inversions")
+
+    ljc = checks.get("llm_judge_comparison") or {}
+    require(isinstance(ljc.get("used"), bool), "llm_judge_comparison.used must be boolean", errors)
+    require(isinstance(ljc.get("ranking_changed"), bool), "llm_judge_comparison.ranking_changed must be boolean", errors)
+    require(isinstance(ljc.get("judge_top_model"), str), "llm_judge_comparison.judge_top_model must be string", errors)
 
     require(p.with_suffix(".md").exists(), f"companion markdown report missing: {p.with_suffix('.md').name}", errors)
 

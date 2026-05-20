@@ -51,6 +51,7 @@ def main(path: str) -> None:
 
     summary = data.get("summary") or {}
     require(summary.get("verdict") in VALID_VERDICTS, f"summary.verdict must be one of {VALID_VERDICTS}", errors)
+    require(isinstance(summary.get("score"), (int, float)) and 0.0 <= float(summary["score"]) <= 1.0, "summary.score must be numeric in [0,1]", errors)
     require(isinstance(summary.get("headline"), str) and summary.get("headline", "").strip(), "summary.headline must be non-empty string", errors)
 
     checks = data.get("checks") or {}

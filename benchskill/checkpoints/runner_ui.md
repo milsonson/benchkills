@@ -3,7 +3,7 @@
 1. `python -m py_compile web_runner.py eval_core.py run_eval.py scorer.py` 通过。
 2. 已参考 `benchmark-runner/references/runner_reference.py` 的交互流程；存在 `web_runner.py`，且提供本地交互入口；不得生成 `web/index.html`、`web/app.html`、`web/*.html` 或其它 HTML runner 文件。
 3. 交互入口可填写或覆盖：`base_url`、模型列表、`max_tokens`、`concurrency`、`temperature`、seed 列表、输出目录；`Output Dir` 默认来自 config 且可修改。
-4. `web_runner.py` 调用 `eval_core.py` 的 `plan_runs(...)` / `run_eval_job(...)` 或等价公共入口；没有复制一整套独立评测、评分、并发、落盘逻辑。
+4. `web_runner.py` 调用 `eval_core.py` 的 `plan_runs(...)` / `run_eval_job(...)` 或等价公共入口；如果入口名是 `run_evaluation(...)`，它必须是 `eval_core.py` 内基于 `plan_runs(...)` / `run_eval_job(...)` 的薄封装；没有复制一整套独立评测、评分、并发、落盘逻辑。
 5. API key 是单一凭证模式切换：默认 env var，可切换到 paste key；不是两个并列同级输入框。
 6. 运行前 preview 基于当前 `Output Dir`，能显示已有 manifest、已有 run 数、每个计划模型/seed 的 completed/remaining/total、resume/new；修改 Output Dir、模型或 seeds 后能重新检查。
 7. Start 前后端做 validation；缺 base_url、凭证、模型、非法并发/max_tokens、output dir 不可写时不启动。

@@ -51,7 +51,7 @@ description: Use when creating the initial file layout, config, prompt placehold
 - 默认 api key 引用 `${DEEPINFRA_API_KEY}`。
 - 若 meta-agent 未提供模型列表，使用默认模型组：`zai-org/GLM-4.7-Flash`、`zai-org/GLM-4.6`、`zai-org/GLM-4.7`、`zai-org/GLM-5`、`zai-org/GLM-5.1`。
 - 写入用户指定的 `target_count`；不得硬编码题目数量。
-- 默认写入至少 2 个 seed，例如 `[1, 2]`。
+- 默认写入顶层 `seeds` 列表，至少 2 个 seed，例如 `[1, 2]`；不要写成单数 `seed`，单数只能由后续代码作为兼容别名读取。
 - api key 必须用 `${ENV_VAR}` 引用，不得硬编码。
 - 并发必须大于32。
 - 包含 `runtime.output_dir: outputs`、`runtime.runs_dir: outputs/runs`、`runtime.run_manifest_path: outputs/run_manifest.json`、`runtime.concurrency`。不要再维护第二套顶层输出路径。

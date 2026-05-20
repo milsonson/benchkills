@@ -31,7 +31,9 @@ description: Use when revising benchmark problems after adversarial review finds
 - 不把 discovery source、论文、网页或报告直接改写成阅读理解题来修补对齐问题。
 - 所有题目 `difficulty` 必须等于 5，不得出现 1/2/3/4。
 - 每题至少 6 个不可合并推理节点。
-- 最终 `data/problems.jsonl` 行数必须等于 meta-agent 提供的 `target_count`，字段完整，合法 jsonl；每行追加 `revision_notes`。
+- 最终 `data/problems.jsonl` 行数必须等于 meta-agent 提供的 `target_count`，字段完整，合法 jsonl。
+- 最终 `problems.jsonl` 每行只保留运行和评分核心字段：`id`, `candidate_id`, `blueprint_id`, `topic`, `difficulty`, `problem`, `answer`, `answer_type`, `acceptable_variants`, `scoring_notes`, `reasoning_steps`。不得丢弃 `answer_type`、`acceptable_variants` 或 `scoring_notes`。
+- `solution`, `key_insight`, `trap`, `why_discriminative`, `blueprint_alignment`, `discovery_alignment`, `design_principle_alignment`, `forbidden_pattern_avoidance`, `common_wrong_answer`, `variant_strategy`, `why_harder_than_basic_version`, `shortcut_that_fails`, `condition_sensitivity_test` 等长解释字段不强制进入最终 `problems.jsonl`；需要保留时留在 `problem_candidates.jsonl` 或写入 `revision_notes.jsonl`，避免最终题库单行 JSON 过长和转义风险。
 - 如果 selected 候选少于 `target_count`，不得降低标准凑数；回报缺口和需补写的 blueprint id。
 
 ## revision_notes 字段

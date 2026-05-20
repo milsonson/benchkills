@@ -116,7 +116,7 @@ scoring_red_team 返工时，重派对应 agent 必须追加 `data/scoring_red_t
 - `data/problem_candidates.jsonl` 行数必须等于 `2 * target_count`。
 - `data/candidate_reviews.jsonl` 行数必须等于 `2 * target_count`。
 - 若使用并行 shard，最终合并文件仍按上面行数验收；part 文件不能替代最终文件。
-- blueprint id 必须唯一；候选题 `id == candidate_id`；review 的 `candidate_id` 必须存在；最终 `problems.jsonl.id` 必须等于入选 `candidate_id`。
+- blueprint id 必须唯一；候选题 `id == candidate_id`；review 只用 `candidate_id` 关联候选题（即 `candidate_reviews.candidate_id == problem_candidates.candidate_id`），review 自身 `id` 可以是 `review_<candidate_id>`；最终 `problems.jsonl.id` 必须等于入选 `candidate_id`。
 - `data/problems.jsonl` 行数必须等于 `target_count`。
 - 所有题目 `difficulty` 必须等于 5，不得出现 1/2/3/4。
 - 每个 blueprint 必须有 2 个候选题；reviewer 每个 blueprint 最多选 1 个候选题。
@@ -127,7 +127,7 @@ scoring_red_team 返工时，重派对应 agent 必须追加 `data/scoring_red_t
 - `data/scoring_red_team.jsonl` 中存在 high/fatal 且 `pass=false` 的 issue 时，不得进入 runner_ui。
 - `data/scoring_red_team.jsonl` 每条 high/fatal issue 必须有 `owner_stage`、`recommended_action`、`required_revision`，meta-agent 必须按归因返工。
 - `data/scoring_cases.jsonl` 每行必须包含 `problem_id`，且 `problem_id` 必须存在于 `data/problems.jsonl`。
-- `data/problems.jsonl` 每行必须有候选题核心字段，并追加 `revision_notes`；候选阶段专用分析字段可保留但不强制。
+- `data/problems.jsonl` 每行只要求最终题库核心字段：`id`, `candidate_id`, `blueprint_id`, `topic`, `difficulty`, `problem`, `answer`, `answer_type`, `acceptable_variants`, `scoring_notes`, `reasoning_steps`；长解释和候选阶段专用分析字段保留在 `data/problem_candidates.jsonl` 或 `data/revision_notes.jsonl`，不强制进入最终题库。
 - 每题至少 6 个不可合并推理节点。
 
 ## 工程验收
@@ -135,7 +135,7 @@ scoring_red_team 返工时，重派对应 agent 必须追加 `data/scoring_red_t
 - engineer 阶段必须验证截断返回：`finish_reason=length` 视为完成且不自动重跑；状态标明 truncated；provider 已返回的 `response_text`、reasoning/thinking、`combined_output_text`、`raw_message`/`raw_choice` 必须 100% 落盘，不得本地二次截断；若 UI/摘要截断，必须标注 `truncated/original_chars`。
 - engineer 阶段必须验证 API 调用纪律：不得每题新建 client；SDK 自动重试必须关闭；已有 `max_tokens` 截断约束，不需要额外 request timeout 约束；跨模型/seed/题目的同时 API 请求总数不得超过 `concurrency`，但任务不能被串行化；空 `choices` 不得记为 completed；recent/preview 展示同一 problem 时只取最新记录。
 - `config.yaml` 以 `runtime.output_dir`、`runtime.runs_dir`、`runtime.run_manifest_path`、`runtime.concurrency` 为单一来源；顶层同名字段只能做兼容别名。
-- `config.yaml` 每个模型必须含 `tier`、`family`、`rank_order`；知道参数规模时加 `size_b`；默认至少 2 个 seed。
+- `config.yaml` 每个模型必须含 `tier`、`family`、`rank_order`；知道参数规模时加 `size_b`；默认使用顶层 `seeds` 列表且至少 2 个 seed，单数 `seed` 只能作为兼容别名读取。
 - run manifest 必须写入 `tier`、`family`、`rank_order`、`seed`；知道参数规模时加 `size_b`。
 
 ## 最终交付

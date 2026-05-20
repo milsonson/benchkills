@@ -37,6 +37,7 @@ def main(path: str) -> None:
     summary = data.get("summary") or {}
     verdict = summary.get("verdict")
     require(verdict in VALID_VERDICTS, f"summary.verdict must be one of {VALID_VERDICTS}", errors)
+    require(isinstance(summary.get("score"), (int, float)) and 0.0 <= float(summary["score"]) <= 1.0, "summary.score must be numeric in [0,1]", errors)
     require(isinstance(summary.get("headline"), str) and summary["headline"].strip(), "summary.headline must be non-empty string", errors)
 
     checks = data.get("checks") or {}
@@ -64,6 +65,10 @@ def main(path: str) -> None:
             gap = g.get("nearest_capability_gap")
             require(isinstance(ratio, (int, float)), f"groups[{i}].noise_vs_signal_ratio must be numeric", errors)
             require(isinstance(gap, (int, float)), f"groups[{i}].nearest_capability_gap must be numeric", errors)
+            ljc = g.get("llm_judge_comparison") or {}
+            require(isinstance(ljc.get("used"), bool), f"groups[{i}].llm_judge_comparison.used must be boolean", errors)
+            for k in ["judge_score_std", "judge_noise_vs_signal_ratio"]:
+                require(isinstance(ljc.get(k), (int, float)), f"groups[{i}].llm_judge_comparison.{k} must be numeric", errors)
 
     if has_insufficient and verdict != "manual_review_required":
         errors.append("at least one group has n_seeds<2 but verdict is not 'manual_review_required'")

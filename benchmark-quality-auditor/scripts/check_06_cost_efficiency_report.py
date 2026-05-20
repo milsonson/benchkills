@@ -38,10 +38,11 @@ def main(path: str) -> None:
     summary = data.get("summary") or {}
     verdict = summary.get("verdict")
     require(verdict in VALID_VERDICTS, f"summary.verdict must be one of {VALID_VERDICTS}", errors)
+    require(isinstance(summary.get("score"), (int, float)) and 0.0 <= float(summary["score"]) <= 1.0, "summary.score must be numeric in [0,1]", errors)
     require(isinstance(summary.get("headline"), str) and summary["headline"].strip(), "summary.headline must be non-empty string", errors)
 
     checks = data.get("checks") or {}
-    for key in ["totals", "per_item_cost", "cost_of_signal", "pruning"]:
+    for key in ["totals", "per_item_cost", "cost_of_signal", "pruning", "llm_judge_comparison"]:
         require(key in checks, f"checks.{key} missing", errors)
 
     totals = checks.get("totals") or {}
@@ -102,6 +103,12 @@ def main(path: str) -> None:
         errors.append("recommended_cut_pct>0 but recommended_kept_item_ids is empty")
     if isinstance(rec_cut, (int, float)) and float(rec_cut) > 0 and not any_qualifies:
         errors.append("recommended_cut_pct>0 but no candidate has rho_vs_full>=0.95 and no family inversion")
+
+    ljc = checks.get("llm_judge_comparison") or {}
+    require(isinstance(ljc.get("used"), bool), "llm_judge_comparison.used must be boolean", errors)
+    require(isinstance(ljc.get("cost_of_signal"), list), "llm_judge_comparison.cost_of_signal must be list", errors)
+    ljc_cut = ljc.get("recommended_cut_pct")
+    require(isinstance(ljc_cut, (int, float)) and 0 <= float(ljc_cut) < 100, "llm_judge_comparison.recommended_cut_pct must be in [0,100)", errors)
 
     if completeness == "partial" and isinstance(missing, list) and isinstance(totals.get("tokens_in_total"), (int, float)):
         ok_run_count_hint = len(missing) + 0
