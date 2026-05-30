@@ -30,7 +30,7 @@ description: Use when the user asks to build, bootstrap, design, inspect, or imp
   - scoring_red_team → `benchmark-scoring-red-team`
   - runner_ui → `benchmark-runner`
 - `candidate_write` 只写候选题；最终题库由 `revision` 写入 `data/problems.jsonl`。
-- 用户指定 `target_count` 后，capability 生成 `target_count` 条蓝图，candidate_write 生成 `2 * target_count` 道候选题，revision 最终保留 `target_count` 道题。
+- 用户指定 `target_count` 后，最终 `data/problems.jsonl` 必须正好有 `target_count` 道题。数量是硬交付要求；质量门槛也是硬要求。不得用降低 strong-model-hard 门槛来补数，只能通过并行扩量、重写缺口 blueprint、重审、再修订来补满。
 - `score` 必须在 `engineer` 之前完成；`engineer` 必须把 `score.md` 和 `data/scoring_cases.jsonl` 当作 `scorer.py` 的实现规格，不能先写 scorer 再事后补评分说明。
 - `scoring_red_team` 在 `engineer` 之后运行，专门攻击实际评分脚本 `scorer.py` 的判分行为以及它和 `score.md`、`data/scoring_cases.jsonl` 的一致性。
 - `scoring_red_team` 发现 high/fatal 且 `pass=false` 的问题后，meta-agent 按 `owner_stage` 返工；重跑后仍有 high/fatal `pass=false` 才算未处理。
@@ -39,7 +39,8 @@ description: Use when the user asks to build, bootstrap, design, inspect, or imp
 - 派发时不要复制阶段说明全文；直接要求 subagent **使用对应 skill**，并给它必要输入路径和主题信息。
 - 验收只看落盘文件，不信 subagent 自述。用 `python -m py_compile`、`jq`、`ls`、`wc` 等命令核对关键产物。
 - 验收时读取 `benchskill/checkpoints/` 中对应 checkpoint；没有专用 checkpoint 时按本文件验收。
-- 不过则带"失败项 + 证据"重派同一 subagent，最多 2 次；第 3 次仍不过 → 停，交给用户。
+- 非出题链路不过则带"失败项 + 证据"重派同一 subagent，最多 2 次；第 3 次仍不过 → 停，交给用户。
+- 出题链路不过数时不能进入 scoring：meta-agent 必须把缺口 blueprint 分片并行重派 `candidate_write` + `adversarial_review`，替换旧候选和旧 review，直到 selected 数量等于 `target_count`。重复失败的 blueprint 要回退到 `capability` 重写该 blueprint，而不是让 revision 放水。
 
 ## 启动前
 
@@ -88,9 +89,9 @@ Use the <skill-name> skill.
 - design_philosophy：`skill-name=benchmark-design-philosophy-writer`；追加 `discovery_report.md`、`data/capability_clusters.jsonl`、`data/discovery_revision_notes.jsonl` 路径。
 - philosophy_red_team：`skill-name=benchmark-philosophy-red-team`；追加 `benchmark_design_philosophy.md`、`data/design_principles.json`、`discovery_report.md`、`data/capability_clusters.jsonl` 路径。
 - philosophy_revision：`skill-name=benchmark-philosophy-revision-agent`；追加 `benchmark_design_philosophy.md`、`data/design_principles.json`、`data/philosophy_red_team.jsonl`、`discovery_report.md`、`data/capability_clusters.jsonl` 路径。
-- capability：`skill-name=benchmark-capability-designer`；追加 architecture 产物路径、models 列表、`target_count`、`data/capability_clusters.jsonl`、`benchmark_design_philosophy.md`、`data/design_principles.json`、`data/discovery_revision_notes.jsonl`、`data/philosophy_revision_notes.jsonl`。`target_count > 20` 时优先按 blueprint 序号或 cluster 分片，写入 `data/capability_blueprints.partNN.jsonl`，验收后由 meta-agent 合并为 `data/capability_blueprints.jsonl`。
-- candidate_write：`skill-name=benchmark-question-writer`；追加 `data/capability_blueprints.jsonl`、`benchmark_design_philosophy.md`、`data/design_principles.json` 路径、`target_count`；要求生成 `2 * target_count` 道候选题。`target_count` 较大时可按 blueprint id 范围并行分片，prompt 必须列明本分片 `blueprint_id` 清单，写入 `data/problem_candidates.partNN.jsonl`，验收后由 meta-agent 合并为 `data/problem_candidates.jsonl`。
-- adversarial_review：`skill-name=benchmark-adversarial-reviewer`；追加 `data/capability_blueprints.jsonl`、`data/problem_candidates.jsonl`、`benchmark_design_philosophy.md`、`data/design_principles.json` 路径、`target_count`。只能按 blueprint 范围并行分片，prompt 必须列明本分片 `blueprint_id` 清单，写入 `data/candidate_reviews.partNN.jsonl`，验收后由 meta-agent 合并为 `data/candidate_reviews.jsonl`。
+- capability：`skill-name=benchmark-capability-designer`；追加 architecture 产物路径、models 列表、`target_count`、`data/capability_clusters.jsonl`、`benchmark_design_philosophy.md`、`data/design_principles.json`、`data/discovery_revision_notes.jsonl`、`data/philosophy_revision_notes.jsonl`。`target_count > 20` 时必须按 blueprint 序号或 cluster 分片并行派发，写入 `data/capability_blueprints.partNN.jsonl`，验收后由 meta-agent 合并为 `data/capability_blueprints.jsonl`。
+- candidate_write：`skill-name=benchmark-question-writer`；追加 `data/capability_blueprints.jsonl`、`benchmark_design_philosophy.md`、`data/design_principles.json` 路径、`target_count`；要求每个 blueprint 生成 2 道候选题，因此总数为 `2 * target_count`。`target_count > 20` 时必须按 blueprint id 范围并行分片，prompt 必须列明本分片 `blueprint_id` 清单，写入 `data/problem_candidates.partNN.jsonl`，验收后由 meta-agent 合并为 `data/problem_candidates.jsonl`。
+- adversarial_review：`skill-name=benchmark-adversarial-reviewer`；追加 `data/capability_blueprints.jsonl`、`data/problem_candidates.jsonl`、`benchmark_design_philosophy.md`、`data/design_principles.json` 路径、`target_count`。必须按 blueprint 范围并行分片，prompt 必须列明本分片 `blueprint_id` 清单，写入 `data/candidate_reviews.partNN.jsonl`，验收后由 meta-agent 合并为 `data/candidate_reviews.jsonl`。
 - revision：`skill-name=benchmark-revision-agent`；追加 `data/problem_candidates.jsonl`、`data/candidate_reviews.jsonl`、`benchmark_design_philosophy.md`、`data/design_principles.json` 路径、`target_count`；要求生成最终 `data/problems.jsonl`。
 - score：`skill-name=benchmark-scoring`；追加 `data/problems.jsonl` 路径和 `target_count`。
 - engineer：`skill-name=benchmark-engineer`；追加 `data/problems.jsonl`、`score.md`、`data/scoring_cases.jsonl` 路径，并明确要求 `scorer.py` 以这些评分标准为准。
@@ -108,6 +109,10 @@ scoring_red_team 返工时，重派对应 agent 必须追加 `data/scoring_red_t
 
 ## 题库验收
 
+- 出题链路的最高目标是 `strong-model-hard`，不是普通 difficulty=5：强模型也会高置信走错，正确解需要非常规、非局部修正。`target_count` 是硬交付数；若候选不足，必须并行回退重写缺口 blueprint 和候选，不得用普通难题补满。
+- capability / candidate / adversarial_review / revision 必须保留并验收 strong-model-hard 证据字段：`strong_model_wrong_path`、`why_strong_model_takes_it`、`nonlocal_correction`、`shortest_correct_path_step_count`、`coupled_conditions` 或对应阶段等价字段。
+- 最短正确路径少于 4 个不可跳过领域承诺、只需单个公式/定义/口诀/workflow、或强模型错误路径只是粗心/漏看/格式错误时，不得 selected，不得进入最终题库。
+- `data/problems.jsonl` 可以保留强模型难度审计字段；最终题库核心字段是最低要求，不是字段上限。
 - `data/discovery_plan.json`、`data/design_principles.json` 必须是合法 json。
 - `data/discovery_sources.jsonl`、`data/discovery_findings.jsonl`、`data/discovery_open_questions.jsonl`、`data/capability_clusters.jsonl`、`data/discovery_red_team.jsonl`、`data/discovery_revision_notes.jsonl`、`data/philosophy_red_team.jsonl`、`data/philosophy_revision_notes.jsonl`、`data/capability_blueprints.jsonl`、`data/problem_candidates.jsonl`、`data/candidate_reviews.jsonl`、`data/revision_notes.jsonl`、`data/problems.jsonl`、`data/scoring_cases.jsonl`、`data/scoring_red_team.jsonl` 都必须是合法 jsonl。
 - `data/capability_clusters.jsonl` 至少 1 行，且进入 capability 前已完成 discovery red team 和 revision。
@@ -122,7 +127,7 @@ scoring_red_team 返工时，重派对应 agent 必须追加 `data/scoring_red_t
 - 每个 blueprint 必须有 2 个候选题；reviewer 每个 blueprint 最多选 1 个候选题。
 - 并行生成/审查不得重复或漏掉 blueprint/candidate；合并后每个 candidate id 必须恰好有 1 条 review。
 - adversarial_review 分片必须按 blueprint 切分，不得拆开同一 blueprint 的两个候选。
-- selected 候选数量必须等于 `target_count`；不足时按缺口 blueprint 重写该 blueprint 的 2 个候选并重审，合并时替换旧候选，不追加第三题。
+- selected 候选数量必须等于 `target_count`。不足时按缺口 blueprint 并行重写该 blueprint 的 2 个候选并重审，合并时替换旧候选和旧 review，不追加第三题；仍不足则回退 `capability` 重写对应 blueprint，再重跑该 blueprint 的 candidate/review。
 - selected candidate 不得有 fatal flaw；出现即重跑该 blueprint 的 `candidate_write` + `adversarial_review`，不交给 revision 修。
 - `data/scoring_red_team.jsonl` 中存在 high/fatal 且 `pass=false` 的 issue 时，不得进入 runner_ui。
 - `data/scoring_red_team.jsonl` 每条 high/fatal issue 必须有 `owner_stage`、`recommended_action`、`required_revision`，meta-agent 必须按归因返工。

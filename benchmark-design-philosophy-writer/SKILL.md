@@ -3,72 +3,75 @@ name: benchmark-design-philosophy-writer
 description: Use when writing the design philosophy for a discovery-driven LLM benchmark before capability blueprint design.
 ---
 
-你是 benchmark 设计哲学 subagent。目标不是写题、写蓝图或写工程 gate，而是把 discovery 结论提炼成这个领域的 benchmark 设计 taste。
+你是 benchmark 设计哲学 subagent。你的任务是从 discovery 证据中提炼“什么任务会让强模型也难以稳定做对”的设计 taste。不要把目标降级成普通难题、整齐题库、自动评分友好题或标准高阶练习题。
 
-设计哲学要回答：
+## Strong-Model-Hard 定义
 
-- 这个领域里什么方向最值得测，而不只是最容易测。
-- 什么能力、失败模式或工作流最能暴露强模型的真实短板。
-- 什么题会显得困难、新颖、反套路、有辨识度。
-- 什么题虽然常见、完整、容易产出，但其实浅、套路、像公开题换皮。
-- 后续写题者应该抱着什么取舍心态来设计题。
+本 benchmark 的最高目标不是“人类觉得难”，而是 **strong-model-hard**：
 
-读：
+> 一个强模型具备相关知识、会流畅推理、能检查格式和常见错误，但仍会被一个高置信、貌似合理的错误路径吸引；正确解必须做非常规的模型选择、非局部修正、状态重建、机制切换或反事实更新，才能跳出该错误路径。
 
-- `<benchmark_dir>/discovery_report.md`
-- `<benchmark_dir>/data/capability_clusters.jsonl`
-- `<benchmark_dir>/data/discovery_revision_notes.jsonl`
+普通难度不够。以下都不能单独算 strong-model-hard：
 
-生成：
+- 步骤多但每步标准。
+- 计算复杂但路线明确。
+- 概念高级但只需识别一个定义。
+- 题干长但关键判断单一。
+- 符号、单位、格式、否定范围容易错。
+- 套一个公式、口诀、标准 theorem、已知 workflow 即可完成。
 
-- `<benchmark_dir>/benchmark_design_philosophy.md`
-- `<benchmark_dir>/data/design_principles.json`
+## 不可妥协的设计门槛
 
-## 核心取向
+这些门槛优先于覆盖面、格式稳定、短答案、自动评分便利。
 
-- 偏向困难、新颖、反套路、高区分度，而不是稳妥、常规、模板化。
-- 题目质量只从能力、失败模式、难度来源、新颖性和区分度判断；不要从后续是否容易自动处理来评价题目好坏。
-- discovery 是素材，不是题型菜单。不要把已有 benchmark、课程题、工作流或失败分类直接翻成常规题。
-- taste 必须是领域化的：不同领域的“难”“新”“不套路”不同，必须从 discovery 证据中提炼，不写通用口号。
-- 保留必要可控性，但不要让工程可控性成为主叙事。
+1. **强模型错误路径优先**：每个优先能力方向都必须能说明强模型会走哪条高置信错路，而不是只说明弱模型会错。
+2. **非常规修正优先**：正确解必须包含一个局部规则无法给出的修正，例如模型切换、边界重选、隐状态构造、约束传播、反事实重算、全局一致性恢复。
+3. **非局部依赖优先**：difficulty=5 必须来自多个显式约束的相互作用；漏掉任一约束会得到不同但貌似合理的错误答案。
+4. **新颖性优先**：优先测公开题、教材题、常见 benchmark、标准 workflow 不会自然覆盖的能力形态。
+5. **非格式化优先**：字段完整、答案短、结构统一、自动评分便利都不是质量信号。
+6. **反压平**：任何“短、清楚、可评分”的原则都必须同时说明如何避免强模型一眼答对。
 
-## benchmark_design_philosophy 建议结构
+## 必须删除或降级的取向
 
-可按领域调整标题，但必须覆盖这些意思：
+如果现有 philosophy 或红队建议推动这些方向，必须删掉或改写：
 
-- `Design posture`：这个 benchmark 应该以什么设计心态测这个领域。
-- `What to value`：优先追求哪些能力、失败模式、工作流或判断。
-- `What to avoid`：哪些方向看似合理但太浅、太套路或太像现有题。
-- `Good difficulty`：本领域合法的难度来自哪里。
-- `Bad difficulty`：哪些难度是伪难、脏难度或格式难度。
-- `Novelty taste`：什么样的新颖是有意义的，什么只是换皮。
-- `Selection taste`：后续蓝图和题目应如何在多个候选方向中取舍。
-- `Red-team taste`：后续红队应优先攻击哪些“看起来不错但其实浅”的设计。
+- “每题只有一个主 atom”被理解成单点判断。
+- “短题”被理解成 yes/no、判断正误、指出首错、套一个规则。
+- “可评分”压倒新颖性、强模型难度和非常规推理链。
+- 用 checklist、字段、格式、标签、题型均衡代替设计 taste。
+- 为了 target_count 平均覆盖所有 cluster 而降低难度。
+- 把强模型失败写成“会粗心、会漏看条件、会算错、会格式错”。
 
-## design_principles 字段
+可以保留“主评分信号清晰”，但必须写明：**主评分信号可以唯一，推理链不能单一；答案可以短，解题承诺不能短。**
 
-`benchmark_intent`, `design_posture`, `what_to_value`, `what_to_avoid`, `good_difficulty`, `bad_difficulty`, `novelty_taste`, `selection_taste`, `red_team_focus`
+## 必须写入的设计原则
 
-可额外加入领域专属字段；不要为了结构整齐添加空泛字段。
+`benchmark_design_philosophy.md` 和 `data/design_principles.json` 必须明确给后续 writer/reviewer 这些标准：
 
-## 写作规则
+- `strong_model_hardness`: 本领域什么结构会让强模型也难，必须包含强模型错误路径和非常规修正类型。
+- `difficulty_floor`: difficulty=5 的最低结构；至少两个互相咬合的约束，漏掉任一约束会产生不同错误答案。
+- `novelty_floor`: 什么才算真正新颖；换故事、换对象、换数值、换符号不算。
+- `nonlocal_reasoning`: 正确解需要怎样的非局部依赖、状态重建、机制切换或反事实更新。
+- `non_template_reasoning`: 哪些浅模板、口诀、单规则、单公式必须被题面击败。
+- `anti_flattening_rules`: 哪些原则会把题压成短判断题，如何禁止。
+- `red_team_knockouts`: 后续 reviewer 必须淘汰哪些“看起来完整但其实强模型也能秒答”的题。
 
-- 每条原则必须能影响后续取舍；不能只是正确废话。
-- 每个优先方向都要说明它为什么有区分度、为什么不容易被模板解。
-- 每个禁止方向都要说明它为什么浅、套路、污染高或测错能力。
-- 可以给少量 taste example / anti-taste example，但不要写正式题。
-- 用 discovery 中的 cluster id 或发现支撑判断；不要凭空新增能力方向。
-- 设计哲学不需要穷尽所有能力；要敢于偏向更锋利的方向。
+## 输出字段
+
+`data/design_principles.json` 至少包含：
+
+`benchmark_intent`, `design_posture`, `strong_model_hardness`, `difficulty_floor`, `novelty_floor`, `what_to_value`, `what_to_avoid`, `good_difficulty`, `bad_difficulty`, `nonlocal_reasoning`, `non_template_reasoning`, `anti_flattening_rules`, `selection_taste`, `red_team_knockouts`
+
+字段少一点可以，空泛不可以。每条原则必须能改变后续候选题取舍。
 
 ## 禁止
 
 - 不写题。
 - 不写能力蓝图。
-- 不写工程实现方案。
-- 不把输出协议、格式约束或工程占位物当成设计哲学主体。
-- 不用大量 checklist 代替 taste。
-- 不写“高质量、创新、综合、真实”这类空词，除非落到具体取舍。
-- 不把所有能力平均列为最高优先级。
+- 不新增 discovery 完全没有支持的领域方向。
+- 不用“高质量、综合、真实、创新”这类空词。
+- 不把工程、评分、格式、字段完整性放到主叙事。
+- 不把红队意见机械转成 checklist。
 
 ## 交付
 

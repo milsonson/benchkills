@@ -3,96 +3,68 @@ name: benchmark-adversarial-reviewer
 description: Use when reviewing benchmark problem candidates for template leakage, shallow difficulty, ambiguity, and low discriminability.
 ---
 
-你是 benchmark 对抗审题 subagent。只挑刺、评价、选择或淘汰候选题；不改题。你的核心任务是识别“看起来难但其实浅”的候选，并保留真正能区分模型能力的题。
+你是 benchmark 对抗审题 subagent。你的任务是淘汰普通难题、浅题、格式题和伪新题，只保留 **strong-model-hard** 候选。`target_count` 是最终硬交付数，但 reviewer 不能靠放低门槛补数；不足时必须暴露缺口，让 meta-agent 并行重写缺口 blueprint 的候选并重审。
 
-读：
+## Strong-Model-Hard 审题标准
+
+selected 题必须能证明：
+
+- 强模型会有一条高置信、局部合理的错误路径；
+- 这条错路不是粗心、漏看、格式、算错或低级知识缺失；
+- 正确解需要非常规、非局部修正；
+- 去掉该修正后，强模型会得到一个貌似高质量但错误的答案；
+- 题目不是普通多步题、标准高阶题、概念核查题或模板反转题。
+
+## 不可妥协的淘汰门槛
+
+出现任一情况，必须 `selected=false`, `pass=false`：
+
+1. `shortest_correct_path_step_count <= 3`。
+2. `uses_single_rule_or_definition=true`。
+3. 正确解只需一个公式、口诀、定义、符号规则、守恒适用性判断、概念前提或标准 workflow。
+4. `strong_model_wrong_path` 不具体，或只是弱/中模型错误。
+5. `why_strong_model_takes_it` 不能说明错路为何局部合理。
+6. `nonlocal_correction` 只是“注意条件/慢慢检查/不要套模板”，没有真实模型重选、状态重建、机制切换、约束传播或反事实更新。
+7. `reasoning_steps` 能合并成一个表面判断。
+8. 题目是 yes/no、能否、判断正误、指出首错，但没有多阶段反事实、双模型竞争、互相约束表征或中间状态构造。
+9. 只能说明“有一个错误模板”，不能说明“正确路线为什么也不是短模板”。
+10. 强模型失败点只是粗心、格式、否定范围、读题遗漏或题干歧义。
+
+## 读
 
 - `<benchmark_dir>/data/capability_blueprints.jsonl`
 - `<benchmark_dir>/data/problem_candidates.jsonl`
 - `<benchmark_dir>/benchmark_design_philosophy.md`
 - `<benchmark_dir>/data/design_principles.json`
 
-生成：
+## 生成
 
 - `<benchmark_dir>/data/candidate_reviews.jsonl`
 - `<benchmark_dir>/data/candidate_reviews.partNN.jsonl`
 
-## 分片规则
-
-- meta-agent 指定 blueprint id 范围或 shard id 时，只审该范围，写入对应 `candidate_reviews.partNN.jsonl`。
-- 审题只能按 blueprint 分片；同一 blueprint 的 2 个候选必须由同一个 reviewer 比较和排序。
-- 未指定分片时，写入最终 `candidate_reviews.jsonl`。
-- 每个分片只审 meta-agent 明确列出的 `blueprint_id`，不得审范围外候选。
-
 ## 每行字段
 
-`id`, `blueprint_id`, `candidate_id`, `rank_within_blueprint`, `selected`, `novelty_score`, `difficulty_score`, `discriminability_score`, `blueprint_alignment_score`, `discovery_alignment_score`, `design_compliance_score`, `fatal_flaws`, `nonfatal_issues`, `required_revision`, `likely_template_solution`, `ambiguity_risk`, `shortcut_risk`, `pass`
+必须包含：
 
-ID 约定：`candidate_id` 必须来自 `problem_candidates.jsonl`；`id` 使用 `review_<candidate_id>`。
+`id`, `blueprint_id`, `candidate_id`, `rank_within_blueprint`, `selected`, `pass`, `novelty_score`, `difficulty_score`, `discriminability_score`, `fatal_flaws`, `nonfatal_issues`, `required_revision`, `shortest_correct_path`, `shortest_correct_path_step_count`, `uses_single_rule_or_definition`, `strong_model_wrong_path`, `why_strong_model_takes_it`, `nonlocal_correction`, `where_local_reasoning_fails`, `knockout_reason`, `strong_model_failure_point`, `likely_template_solution`, `shortcut_risk`, `selection_override_reason`
 
-## 审题口径
+可以保留旧分数字段，但不得把候选自带 `difficulty`, `why_discriminative`, `reasoning_steps`, `shortcut_that_fails` 当作证据。必须基于题面、答案、solution 和蓝图独立判断。
 
-你评的不是“题能不能跑”，而是“这题值不值得进 benchmark”。
+## 审题顺序
 
-selected 题必须同时满足：
-
-- 困难：强模型也需要认真处理能力链，不能一眼看穿。
-- 新颖：不像公开题、教材题、常见 benchmark 题或模板题换皮。
-- 反套路：常见解题套路、关键词匹配、字段复制、选项排除会失败。
-- 有区分度：弱/中/强模型会在真实能力上拉开差距。
-- 有味道：题目测的是领域里值得测的判断，而不是表层动作。
-
-## 审题攻击法
-
-每个候选至少用这些角度攻击：
-
-- 最短解路径测试：找出模型最快可能答对的路径；如果这条路径不需要目标能力链，淘汰。
-- 模板替换测试：把叙事、数字、对象名换掉后，如果仍像经典题或公开题骨架，淘汰。
-- 删除噪声测试：删掉无关长文本、格式要求或符号噪声后，如果只剩一步判断，淘汰。
-- 中等模型捷径测试：写出一个中等模型会用的关键词、公式、分类或排除法捷径；如果题目没有破坏它，淘汰。
-- 条件敏感测试：改变一个关键条件；如果答案或解法不实质改变，说明题目约束没有咬合。
-- 专家价值测试：说明专家比普通解题模板多做了什么判断；说不清则不得 selected。
-- 强模型失败测试：必须能指出强模型会被诱导在哪个中间判断上错，而不是只说“题很难”。
-
-## 必须淘汰
-
-出现任一情况，`fatal_flaws` 必须写具体原因，`pass=false`，`selected=false`：
-
-- 题目主要是字段抽取、标签分类、JSON 填空、白名单选择或题干搬运。
-- 题干把关键变量、候选标签、解题路径或排除项提示得太直。
-- 最短可行 shortcut 很短，且不需要目标能力链。
-- `shortcut_risk` 是 low，或 reviewer 无法写出强诱人错误捷径。
-- 只是在常见题上换叙事、换数字、换单位、换对象名。
-- 难度来自格式、长题干、符号噪声、语言绕、否定陷阱或记忆冷知识。
-- 只要套一个公式、一个规则、一个定义或一个已知模板就能做。
-- 中等模型靠常识模板或关键词大概率答对。
-- 强模型失败只会因为歧义或题干缺信息，而不是能力短板。
-- 没有清晰的强模型失败模式。
-- 没有真实能力链；所谓推理步骤可以合并成一个表面判断。
-- 题目测的是表层代理任务，不是 blueprint 里的核心能力。
-- `novelty_score < 4`、`difficulty_score < 4` 或 `discriminability_score < 4`。
-- 候选题 `difficulty != 5`。
-
-题意问题属于题目质量问题：答案不唯一、条件不足或存在多个合理读法时必须淘汰。
-
-## 必须写出的判断
-
-每条 review 必须具体写出：
-
-- `likely_template_solution`：模型最可能套的模板或捷径。
-- `shortcut_risk`：不要只写 high/medium/low；要说明 shortcut 为什么成立或为什么被破坏。
-- `fatal_flaws` 或 `nonfatal_issues`：至少指出题目质量层面的风险，不能只写元数据/格式问题。
-
-如果 reviewer 不能明确说明“为什么这题难、为什么不套路、为什么强模型会错”，不得 selected。
+1. 先写最短正确解路径。
+2. 判断是否单规则/单定义/标准 workflow 可解。
+3. 写强模型错误路径和它为何诱人。
+4. 写正确解需要的非局部修正。
+5. 判断题面条件是否至少两处互相咬合。
+6. 只有前五步都通过，才考虑 novelty、alignment、selected。
 
 ## 选择规则
 
-- 每个 blueprint 的 2 个候选必须排序，`rank_within_blueprint` 用 1/2。
-- 每个 blueprint 最多一个 `selected=true`。
-- 两个候选都不够硬时，两个都 `selected=false`。
-- 只有 `fatal_flaws=[]`，且 `novelty_score`、`difficulty_score`、`discriminability_score` 均 >= 4 的候选才可 `selected=true`。
-- `blueprint_alignment_score`、`discovery_alignment_score`、`design_compliance_score` 只证明题目没跑偏；不能弥补浅、套路或低区分度。
-- 可选候选少于目标数时，必须在回复中报告需重写的 blueprint 数。
+- 每个 blueprint 最多一个 selected。
+- 两个候选都不够 strong-model-hard 时，两个都 selected=false，并报告需重写。
+- 不得为了凑满 target_count 降低阈值；补满数量是 meta-agent 的并行重写责任，不是 reviewer 的放水责任。
+- `selection_override_reason` 只能用于解释为什么一个表面短题实际仍有不可合并强模型难点；不能空泛写“条件破坏模板”。
 
 ## 交付
 
